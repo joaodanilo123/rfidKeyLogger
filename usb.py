@@ -1,51 +1,58 @@
 #em pynput, importar o método Listener do teclado
 from pynput.keyboard import Listener
-import requests
+from httpFunctions import getValidTokens, updateReserve
 
-#definir a localização do arquivo de log
-logFile = "D:/LOG.txt"
-nums = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+nums = '1234567890'
+validTokens = getValidTokens()
+
 currentString = "" 
-validID = False
-host = 'http://localhost/sara/actions/atualizar_reserva.php'
-
 httpResponse = False
 
-def doRequest(id):
-    r = requests.post(host, data = {'rfid': id})
-    return r
+def validateToken(token, tokensList):
+    for t in tokensList:
+        if token == t['token']: 
+            return True
+    
+    return False
 
-def writeLog(key):
+def handleEnter():
 
-    global validID, currentString, nums, logFile, httpResponse
-    keydata = str(key)
+    global currentString, validTokens
 
-    if "'" in keydata:
-        keydata = keydata.replace("'", "")
-        if keydata in nums and len(currentString) <= 10:
-            currentString += keydata
-            #abrir o arquivo de log no modo append
-            with open(logFile, "a") as f:
-                f.write(keydata)
-
-    elif keydata == 'Key.enter' and len(currentString) == 10:
-        print(currentString)
-        with open(logFile, "a") as f:
-            f.write(currentString)
+    if validateToken(currentString, validTokens):
+        print('Token valido')
+        #httpResponse = updateReserve(currentString)
+        #print(httpResponse.json())
         
-        httpResponse = doRequest(currentString)
-        print(httpResponse.json())
-        currentString = ""
-        
+    else:
+        print('Token não cadastrado')
+    
+    currentString = ""
 
-    if keydata == "\\x1a":
+def handleKey(keyRaw):
+
+    global validID, currentString, nums, httpResponse
+    key = str(keyRaw)
+
+    if "'" in key:
+        key = key.replace("'", "")
+    
+    if key in nums and len(currentString) <= 10:
+        currentString += key
+
+    #if key == 'Key.enter':
+        #handleEnter()
+
+    if key == "\\x1a":
         exit()
 
+    print(currentString)
 
 #abrir o Listener do teclado e escutar o evento on_press
 #quando o evento on_press ocorrer, chamar a função writeLog
 
 print('Pronto para ler etiquetas!\n')
 
-with Listener(on_press=writeLog) as l:
+with Listener(on_press=handleKey) as l:
     l.join()
+
